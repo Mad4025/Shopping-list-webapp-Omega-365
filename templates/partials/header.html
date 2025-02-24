@@ -1,0 +1,26 @@
+<nav class="navbar navbar-expand-md navbar-dark bg-steel fixed-top" id="background-image-low-opacity">
+    <div class="container">
+        <a class="navbar-brand mr-4" href="/">ShopLst</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarToggle">
+            <div class="navbar-nav mr-auto">
+                <a class="nav-item nav-link" href="/">Home</a>
+                <a class="nav-item nav-link" href="/shopping-list">Shopping List</a>
+                <a class="nav-item nav-link" href="/add-item">Add item</a>
+            </div>
+        </div>
+        <div class="btn">
+            {% if current_user.is_authenticated %}
+                {% if profile_pic %}
+                    <img src="{{ profile_pic }}" style="width:38px; height:38px; border-radius:50%;">
+                {% endif %}
+                <span style="color:#F1FAEE;">{{ name }}</span>
+                <a href="{{ url_for('logout') }}" class="btn" style="color:#F1FAEE;">Log out</a>
+            {% else %}
+                <a href="{{ url_for('login_google') }}" class="btn" style="color:#F1FAEE;">Log in</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>

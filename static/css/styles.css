@@ -1,0 +1,22 @@
+.item-block {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #fafafa;
+    border-radius: 8px;
+    height: 100%;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+@media (max-width: 767px) {
+    .col-custom-5 {
+        flex: 0 0 50%; /* 2 per row on small screens */
+        max-width: 50%;
+    }
+}
+
+.col-custom-5 {
+    flex: 0 0 20%; /* 100% / 5 = 20% for 5 items per row */
+    max-width: 20%;
+    padding: 0 15px; /* Horizontal spacing */
+}

@@ -1,0 +1,9 @@
+flask
+sqlalchemy
+dotenv
+datetime
+stripe
+pymysql
+flask_login
+authlib
+flask_sqlalchemy

@@ -1,0 +1,113 @@
+{% extends 'layout.html' %}
+
+{% block headline %}
+    <br><h1 class="title pt-5">Shopping List</h1>
+{% endblock headline %}
+
+{% block content %}
+    <div class="container mt-5">
+        <div class="row">
+            {% for item in items %}
+            <div class="col-custom-5 mb-4">
+                <div class="item-block">
+                    <h5>{{ item.item_name }}</h5>
+                    <p><strong>Price:</strong> ${{ item.price }}</p>
+                    <p><strong>Stock:</strong> {{ item.quantity }}</p>
+                    <p><strong>Added:</strong> {{ item.created_at.strftime('%d.%m.%Y') }}</p>
+                    <button class="btn btn-success btn-sm" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11;">
+        <div id="cartToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">Shopping Cart</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                Item added to cart!
+            </div>
+        </div>
+    </div>
+
+    <!-- Shopping Cart Modal -->
+    <div class="modal fade" id="cartModal" tabindex="-1" aria-labelledby="cartModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="cartModalLabel">Shopping Cart</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <ul id="cartItemsList" class="list-group">
+                        <!-- Cart items will appear here dynamically -->
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <form action="/create-checkout-session" method="POST">
+                        <button type="submit" class="btn btn-primary">Proceed to Checkout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Cart Button -->
+    <button class="btn btn-info" id="viewCartBtn" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">View Cart🛒</button>
+    <script>
+        function addToCart(itemName) {
+            fetch('/add-to-cart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `item_name=${encodeURIComponent(itemName)}`
+            })
+            .then(response => response.json())
+            .then(data => updateCartModal(data.cart))
+            .catch(error => console.error('Error:', error));
+
+            // Display that you've added an item to the cart with Toast!
+            var toastEl = document.getElementById('cartToast');
+            var toast = new bootstrap.Toast(toastEl);
+            toast.show();
+        }
+
+        function deleteFromCart(itemId) {
+            fetch('/delete-from-cart', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                body: `item_id=${itemId}`
+            })
+            .then(response => response.json())
+            .then(data => updateCartModal(data.cart))
+            .catch(error => console.error('Error:', error));
+        }
+
+        function updateCartModal(cart) {
+            const cartList = document.getElementById('cartItemsList');
+            cartList.innerHTML = '';
+            cart.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'list-group-item d-flex justify-content-between align-items-center';
+                li.innerHTML = `${item.item_name || 'Unknown Item'} (x${item.quantity}) 
+                <button class="btn btn-danger btn-sm" onclick="deleteFromCart(${item.id})">Delete</button>`;
+                cartList.appendChild(li);
+            });
+        }
+
+        // Fetch cart contents when clicking 'view cart'
+        document.getElementById('viewCartBtn').addEventListener('click', () => {
+            fetch('/get-cart', {method:'GET'})
+            .then(response => response.json())
+            .then(data => updateCartModal(data.cart))
+            .catch(error => console.error('Error:', error))
+
+            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+            cartModal.show();
+        });
+    </script>
+{% endblock content %}
