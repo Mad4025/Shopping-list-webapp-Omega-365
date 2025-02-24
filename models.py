@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, DECIMAL
+from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, Float
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
@@ -34,6 +34,17 @@ class ShoppingCart(Base):
     item_name = Column(String(100), nullable=False)
     quantity = Column(Integer, default=1)
     added_at = Column(DateTime, default=datetime.now)
+
+
+class PurchaseHistory(Base):
+    __tablename__ = 'purchase_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    transaction_id = Column(String(100), nullable=False) # Store stripe session_id
+    item_name = Column(String(100), nullable=False)
+    quantity = Column(Integer, nullable=False)
+    price = Column(Float, nullable=False)
+    purchased_at = Column(DateTime, default=datetime.now)
 
 
 class User(UserMixin, Base):

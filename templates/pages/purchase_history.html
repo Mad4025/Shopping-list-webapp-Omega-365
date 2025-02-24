@@ -1,0 +1,61 @@
+{% extends "layout.html" %}
+
+{% block headline %}
+    <br><h1 class="title pt-5">Purchase History</h1>
+{% endblock headline %}
+
+{% block content %}
+<div class="container mt-5">
+    {% for transaction in transactions %}
+    <div class="receipt mx-auto mb-4" style="max-width: 500px; border: 1px solid #ddd; padding: 20px; background-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
+        <h2 class="text-center mb-4" style="font-family: 'Courier New', Courier, monospace;">Purchase Receipt</h2>
+        <div class="text-center mb-3">
+            <p class="mb-0">ShopLst</p>
+            <p class="mb-0">Date: {{ transaction.date|datetimefilter }}</p>
+            <p class="mb-0">Transaction: {{ transaction.transaction_id[:10] }}...</p> <!-- Shortened for readability -->
+        </div>
+        <hr style="border-top: 2px dashed #aaa;">
+        
+        <table class="table table-borderless receipt-table">
+            <thead>
+                <tr>
+                    <th scope="col">Item</th>
+                    <th scope="col" class="text-center">Qty</th>
+                    <th scope="col" class="text-right">Price</th>
+                    <th scope="col" class="text-right">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for purchase in transaction.purchases %}
+                <tr>
+                    <td>{{ purchase.item_name }}</td>
+                    <td class="text-center">{{ purchase.quantity }}</td>
+                    <td class="text-right">${{ "%.2f" % purchase.price }}</td>
+                    <td class="text-right">${{ "%.2f" % (purchase.price * purchase.quantity) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="3" class="text-right fw-bold">Grand Total:</td>
+                    <td class="text-right fw-bold">${{ "%.2f" % transaction.total }}</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <hr style="border-top: 2px dashed #aaa;">
+        <p class="text-center mt-3 mb-0" style="font-family: 'Courier New', Courier, monospace;">Thank You for Shopping!</p>
+    </div>
+    {% endfor %}
+</div>
+
+<style>
+    .receipt-table th, .receipt-table td {
+        padding: 5px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+    .receipt-table thead th {
+        border-bottom: 1px solid #aaa;
+    }
+</style>
+{% endblock %}

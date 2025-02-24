@@ -1,9 +1,10 @@
 from flask import Flask, render_template, redirect, url_for, jsonify, request, session as sessn, g
 from flask_login import login_user, login_required, logout_user, current_user, LoginManager
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
-from models import ShoppingList, ShoppingCart, engine, load_dotenv, os, User
+from models import ShoppingList, ShoppingCart, User, PurchaseHistory, engine, load_dotenv, os, datetime
 import stripe
 from authlib.integrations.flask_client import OAuth
+from sqlalchemy import distinct
 
 
 load_dotenv()
@@ -20,6 +21,13 @@ login_manager.login_view = 'login_google'
 # Create a session factory
 session_factory = sessionmaker(bind=engine)
 db_session = scoped_session(session_factory)
+
+def datetimefilter(value, format="%d.%m.%Y %H:%M:%S"):
+    if value == "now":
+        return datetime.now().strftime(format)
+    return value.strftime(format)
+
+app.jinja_env.filters['datetimefilter'] = datetimefilter
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -71,6 +79,26 @@ def add_item_form():
     return render_template('pages/add_item.html', profile_pic=profile_pic, name=name)
 
 
+@app.route('/purchase-history')
+def purchase_hitory():
+    profile_pic = sessn.get('profile_pic')
+    name = sessn.get('name')
+    with Session(engine) as session:
+        transaction_ids = session.query(distinct(PurchaseHistory.transaction_id)).all()
+        transactions = []
+        for (trans_id,) in transaction_ids:
+            purchases = session.query(PurchaseHistory).filter_by(transaction_id=trans_id).all()
+            if purchases:
+                total = sum(purchase.price * purchase.quantity for purchase in purchases)
+                transactions.append({
+                    'transaction_id': trans_id,
+                    'purchases': purchases,
+                    'total': total,
+                    'date': purchases[0].purchased_at # Use the first item's date
+                })
+    return render_template('pages/purchase_history.html', transactions=transactions, name=name, profile_pic=profile_pic)
+
+
 @app.route('/add-item', methods=['POST'])
 def add_item():
     item_name = request.form['item_name']
@@ -86,17 +114,28 @@ def add_item():
 @app.route('/add-to-cart', methods=['POST'])
 def add_to_cart():
     item_name = request.form['item_name']
-    with Session(engine) as db_session:
-        existing_item = db_session.query(ShoppingCart).filter_by(item_name=item_name).first()
-        if existing_item:
-            existing_item.quantity += 1
+    with Session(engine) as session:
+        # Check available stock in ShoppingList
+        shopping_item = session.query(ShoppingList).filter_by(item_name=item_name).first()
+        if not shopping_item or shopping_item.quantity <= 0:
+            return jsonify({'status': 'error', 'message': 'Item out of stock'}), 400
+        
+        # Check if item exists in cart
+        cart_item = session.query(ShoppingCart).filter_by(item_name=item_name).first()
+        if cart_item:
+            if shopping_item.quantity <= cart_item.quantity:
+                return jsonify({'status': 'error', 'message': 'Not enough stock'}), 400
+            cart_item.quantity += 1
         else:
-            existing_item = ShoppingCart(item_name=item_name, quantity=1)
-            db_session.add(existing_item)
-        db_session.commit()
+            cart_item = ShoppingCart(item_name=item_name, quantity=1)
+            session.add(cart_item)
+
+        # Reduce stock in ShoppingList
+        shopping_item.quantity -= 1
+        session.commit()
 
         # Fetch all cart items
-        cart_items = db_session.query(ShoppingCart).all()
+        cart_items = session.query(ShoppingCart).all()
         cart_list = [{'id':item.id, 'item_name': item.item_name, 'quantity':item.quantity} for item in cart_items]
     return jsonify({'status':'success', 'cart':cart_list})
 
@@ -134,7 +173,7 @@ def create_checkout_session():
                 payment_method_types=['card'],
                 line_items=line_items,
                 mode='payment',
-                success_url=f'{request.host_url}success',
+                success_url=f'{request.host_url}success?session_id={{CHECKOUT_SESSION_ID}}',
                 cancel_url=f'{request.host_url}cancel'
             )
             return redirect(checkout_session.url, code=303)
@@ -144,6 +183,24 @@ def create_checkout_session():
   
 @app.route('/success')
 def success():
+    session_id = request.args.get('session_id')
+    if session_id:
+        with Session(engine) as session:
+            # Fetch cart items
+            cart_items = session.query(ShoppingCart).all()
+            for cart_item in cart_items:
+                shopping_item = session.query(ShoppingList).filter_by(item_name=cart_item.item_name).first()
+                if shopping_item:
+                    # Purchase history log.
+                    purchase = PurchaseHistory(
+                        transaction_id=session_id,
+                        item_name=cart_item.item_name,
+                        quantity=cart_item.quantity,
+                        price=float(shopping_item.price)
+                    )
+                    session.add(purchase)
+                    session.delete(cart_item)
+            session.commit()
     # Future changes here: remove items in cart when you buy and maybe even add a receipt 0_0.
     return redirect(url_for('shopping_list'))
 

@@ -67,13 +67,19 @@
                 body: `item_name=${encodeURIComponent(itemName)}`
             })
             .then(response => response.json())
-            .then(data => updateCartModal(data.cart))
+            .then(data => {
+                if (data.status === 'success') {
+                    updateCartModal(data.cart);
+                     // Display that you've added an item to the cart with Toast!
+                    var toastEl = document.getElementById('cartToast');
+                    var toast = new bootstrap.Toast(toastEl);
+                    toast.show();
+                } 
+                else {
+                    alert(data.message || 'Could not add item to cart.');
+                }
+            })
             .catch(error => console.error('Error:', error));
-
-            // Display that you've added an item to the cart with Toast!
-            var toastEl = document.getElementById('cartToast');
-            var toast = new bootstrap.Toast(toastEl);
-            toast.show();
         }
 
         function deleteFromCart(itemId) {
