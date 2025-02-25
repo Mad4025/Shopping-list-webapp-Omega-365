@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, Float
+from sqlalchemy import Column, Integer, String, DateTime, DECIMAL, Float, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from dotenv import load_dotenv
@@ -11,6 +11,14 @@ load_dotenv()
 Base = declarative_base()
 db_path = os.getenv('db_path')
 engine = create_engine(f"mysql+pymysql://{db_path}")
+
+
+class User(UserMixin, Base):
+    __tablename__ = 'users'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(150), unique=True, nullable=False)
+    role = Column(String(50), default='user')
 
 
 class ShoppingList(Base):
@@ -35,6 +43,7 @@ class ShoppingCart(Base):
     item_name = Column(String(100), nullable=False)
     quantity = Column(Integer, default=1)
     added_at = Column(DateTime, default=datetime.now)
+    user_id = Column(Integer, ForeignKey(User.id))
 
 
 class PurchaseHistory(Base):
@@ -46,14 +55,7 @@ class PurchaseHistory(Base):
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     purchased_at = Column(DateTime, default=datetime.now)
-
-
-class User(UserMixin, Base):
-    __tablename__ = 'users'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    email = Column(String(150), unique=True, nullable=False)
-    role = Column(String(50), default='user')
+    user_id = Column(Integer, ForeignKey(User.id))
 
 
 Base.metadata.create_all(engine)

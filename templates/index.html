@@ -1,10 +1,14 @@
 {% extends 'layout.html' %}
 {% block headline %}
-    <br><h1 class="title pt-5">Welcome to ShopLst{{', ' + name + '!' if current_user.is_authenticated }}</h1>
+    <br><br><h1 class="title pt-5">Welcome to ShopLst{{', ' + name + '!' if current_user.is_authenticated }}</h1>
 {% endblock headline %}
 
 {% block content %}
 <div class="container mt-5">
-    <h4>Pick out the items from your shopping list without leaving the house!</h4>
+    <div class="row">
+        <form action="/shopping-list" class="row">
+            <button type="submit" class="btn btn-primary btn-lg row">Pick out the items from your shopping list without leaving the house!</button>
+        </form>
+    </div>
 </div>
 {% endblock content %}

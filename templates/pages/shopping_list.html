@@ -1,13 +1,13 @@
 {% extends 'layout.html' %}
 
 {% block headline %}
-    <br><h1 class="title pt-5">Shopping List</h1>
+    <br><br><h1 class="title pt-5">Shopping List</h1>
 {% endblock headline %}
 
 {% block content %}
     <!-- Filter Dropdown -->
     <div class="mb-4">
-        <label for="categoryFilter" class="form-label">Filter by Category:</label>
+        <label for="categoryFilter" class="form-label"><strong>Filter by Category:</strong></label>
         <select class="form-control w-auto d-inline-block" id="categoryFilter">
             <option value="all">All Categories</option>
             {% for category in categories %}
@@ -20,7 +20,7 @@
     <div class="container mt-5">
         <div class="row" id="itemList">
             {% for item in items %}
-            <div class="col-custom-5 mb-4" data-category="{{ item.category or 'Uncategorized' }}">
+            <div class="col-3 mb-4" data-category="{{ item.category or 'Uncategorized' }}">
                 <div class="item-block">
                     <!-- Static Display -->
                     <div id="static-{{ item.id }}">
@@ -87,7 +87,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <form action="/create-checkout-session" method="POST">
-                        <button type="submit" class="btn btn-primary">Proceed to Checkout</button>
+                        <button type="submit" class="btn btn-success">Proceed to Checkout</button>
                     </form>
                 </div>
             </div>
@@ -95,4 +95,52 @@
     </div>
     <!-- View Cart Button -->
     <button class="btn btn-info" id="viewCartBtn" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">View Cart🛒</button>
+
+    <script>
+        // Ensure DOM (Document Object Model) is fully loaded before calling filterDropdown.
+        document.addEventListener('DOMContentLoaded', () => {
+            const filterDropdown = document.getElementById('categoryFilter');
+            const itemList = document.getElementById('itemList');
+            
+            if (!filterDropdown || !itemList) {
+                console.error('Filter dropdown or item list not found');
+                return;
+            }
+
+            filterDropdown.addEventListener('change', function() {
+                const selectedCategory = this.value;
+                const items = itemList.querySelectorAll('.col-3');
+                
+                console.log('Selected category:', selectedCategory); // Debug
+                console.log('Found items:', items.length); // Debug
+                
+                items.forEach(item => {
+                    const itemCategory = item.getAttribute('data-category');
+                    console.log('Item category:', itemCategory); // Debug
+                    
+                    if (selectedCategory === 'all' || itemCategory === selectedCategory) {
+                        item.classList.remove('d-none');
+                    } else {
+                        item.classList.add('d-none');
+                    }
+                });
+            });
+        });
+
+                // Fetch cart contents when clicking 'view cart'
+        document.getElementById('viewCartBtn').addEventListener('click', () => {
+            fetch('/get-cart', {method:'GET'})
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    alert(data.message);
+                } else {
+                    updateCartModal(data.cart)
+                    const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
+                    cartModal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error))
+        });
+    </script>
 {% endblock content %}

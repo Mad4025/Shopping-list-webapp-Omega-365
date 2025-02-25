@@ -1,33 +1,3 @@
-// Ensure DOM (Document Object Model) is fully loaded before calling filterDropdown.
-document.addEventListener('DOMContentLoaded', () => {
-    const filterDropdown = document.getElementById('categoryFilter');
-    const itemList = document.getElementById('itemList');
-    
-    if (!filterDropdown || !itemList) {
-        console.error('Filter dropdown or item list not found');
-        return;
-    }
-
-    filterDropdown.addEventListener('change', function() {
-        const selectedCategory = this.value;
-        const items = itemList.querySelectorAll('.col-custom-5');
-        
-        console.log('Selected category:', selectedCategory); // Debug
-        console.log('Found items:', items.length); // Debug
-        
-        items.forEach(item => {
-            const itemCategory = item.getAttribute('data-category');
-            console.log('Item category:', itemCategory); // Debug
-            
-            if (selectedCategory === 'all' || itemCategory === selectedCategory) {
-                item.classList.remove('d-none');
-            } else {
-                item.classList.add('d-none');
-            }
-        });
-    });
-});
-
 function addToCart(itemName) {
     fetch('/add-to-cart', {
         method: 'POST',
@@ -72,17 +42,6 @@ function updateCartModal(cart) {
         cartList.appendChild(li);
     });
 }
-
-// Fetch cart contents when clicking 'view cart'
-document.getElementById('viewCartBtn').addEventListener('click', () => {
-    fetch('/get-cart', {method:'GET'})
-    .then(response => response.json())
-    .then(data => updateCartModal(data.cart))
-    .catch(error => console.error('Error:', error))
-
-    const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-    cartModal.show();
-});
 
 function enableEditing(itemId, itemName, category, quantity) {
     // Hide static display

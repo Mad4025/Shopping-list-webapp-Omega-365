@@ -94,14 +94,17 @@ def add_item_form():
 
 @app.route('/purchase-history')
 def purchase_history():
+    if not current_user.is_authenticated:
+        return render_template('pages/purchase_history.html', transactions=[]) # Empty transactions
+
     profile_pic = sessn.get('profile_pic')
     name = sessn.get('name')
     user_admin = sessn.get('user_admin', False)
     with Session(engine) as session:
-        transaction_ids = session.query(distinct(PurchaseHistory.transaction_id)).all()
+        transaction_ids = session.query(distinct(PurchaseHistory.transaction_id)).filter_by(user_id=current_user.id).all()
         transactions = []
         for (trans_id,) in transaction_ids:
-            purchases = session.query(PurchaseHistory).filter_by(transaction_id=trans_id).all()
+            purchases = session.query(PurchaseHistory).filter_by(transaction_id=trans_id, user_id=current_user.id).all()
             if purchases:
                 total = sum(purchase.price * purchase.quantity for purchase in purchases)
                 transactions.append({
@@ -150,6 +153,9 @@ def edit_item(item_id):
 
 @app.route('/add-to-cart', methods=['POST'])
 def add_to_cart():
+    if not current_user.is_authenticated:
+        return jsonify({ 'status': 'error', 'message': 'Please log in to add items to cart' }), 403
+
     item_name = request.form['item_name']
     with Session(engine) as session:
         # Check available stock in ShoppingList
@@ -158,13 +164,17 @@ def add_to_cart():
             return jsonify({'status': 'error', 'message': 'Item out of stock'}), 400
         
         # Check if item exists in cart
-        cart_item = session.query(ShoppingCart).filter_by(item_name=item_name).first()
+        cart_item = session.query(ShoppingCart).filter_by(item_name=item_name, user_id=current_user.id).first()
         if cart_item:
             if shopping_item.quantity <= cart_item.quantity:
                 return jsonify({'status': 'error', 'message': 'Not enough stock'}), 400
             cart_item.quantity += 1
         else:
-            cart_item = ShoppingCart(item_name=item_name, quantity=1)
+            cart_item = ShoppingCart(
+                item_name=item_name, 
+                quantity=1,
+                user_id=current_user.id
+                )
             session.add(cart_item)
 
         # Reduce stock in ShoppingList
@@ -172,15 +182,18 @@ def add_to_cart():
         session.commit()
 
         # Fetch all cart items
-        cart_items = session.query(ShoppingCart).all()
-        cart_list = [{'id':item.id, 'item_name': item.item_name, 'quantity':item.quantity} for item in cart_items]
+        cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
+        cart_list = [{'id':item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
     return jsonify({'status':'success', 'cart':cart_list})
 
 
 @app.route('/create-checkout-session', methods=['POST'])
 def create_checkout_session():
+    if not current_user.is_authenticated:
+        return redirect(url_for('login_google'))
+
     with Session(engine) as session:
-        cart_items = session.query(ShoppingCart).all()
+        cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
         if not cart_items:
             return 'Your cart is empty', 400
         
@@ -221,10 +234,10 @@ def create_checkout_session():
 @app.route('/success')
 def success():
     session_id = request.args.get('session_id')
-    if session_id:
+    if session_id and current_user.is_authenticated:
         with Session(engine) as session:
             # Fetch cart items
-            cart_items = session.query(ShoppingCart).all()
+            cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
             for cart_item in cart_items:
                 shopping_item = session.query(ShoppingList).filter_by(item_name=cart_item.item_name).first()
                 if shopping_item:
@@ -233,10 +246,11 @@ def success():
                         transaction_id=session_id,
                         item_name=cart_item.item_name,
                         quantity=cart_item.quantity,
-                        price=float(shopping_item.price)
+                        price=float(shopping_item.price),
+                        user_id=current_user.id
                     )
                     session.add(purchase)
-                    session.delete(cart_item)
+            session.query(ShoppingCart).filter_by(user_id=current_user.id).delete()
             session.commit()
     # Future changes here: remove items in cart when you buy and maybe even add a receipt 0_0.
     return redirect(url_for('purchase_history'))
@@ -249,21 +263,27 @@ def cancel():
 
 @app.route('/get-cart', methods=['GET'])
 def get_cart():
-    with Session(engine) as session:
-        cart_items = session.query(ShoppingCart).all()
-        cart_list = [{'id': item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
-    return jsonify({'cart': cart_list})
+    if current_user.is_authenticated:
+        with Session(engine) as session:
+            cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
+            cart_list = [{'id': item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
+        return jsonify({ 'cart': cart_list })
+    else:
+        return jsonify({ 'cart': [], 'message': 'Please log in to view your cart.' })
 
 
 @app.route('/delete-from-cart', methods=['POST'])
 def delete_from_cart():
+    if not current_user.is_authenticated:
+        return jsonify({ 'status': 'error', 'message': 'Please log in to manage your cart.' }), 403
+
     item_id = request.form['item_id']
     with Session(engine) as session:
-        item = session.query(ShoppingCart).filter_by(id=item_id).first()
+        item = session.query(ShoppingCart).filter_by(id=item_id, user_id=current_user.id).first()
         if item:
             session.delete(item)
             session.commit()
-        cart_items = session.query(ShoppingCart).all()
+        cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
         cart_list = [{'id': item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
     return jsonify({'cart': cart_list})
 
