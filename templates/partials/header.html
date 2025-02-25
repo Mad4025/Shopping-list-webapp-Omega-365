@@ -9,7 +9,9 @@
                 <a class="nav-item nav-link" href="/">Home</a>
                 <a class="nav-item nav-link" href="/shopping-list">Shopping List</a>
                 <a class="nav-item nav-link" href="/purchase-history">Purchases</a>
+                {% if user_admin %}
                 <a class="nav-item nav-link" href="/add-item">Add item</a>
+                {% endif %}
             </div>
         </div>
         <div class="btn">

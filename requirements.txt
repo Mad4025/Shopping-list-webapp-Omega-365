@@ -1,9 +1,10 @@
 flask
+flask_sqlalchemy
+flask_login
 sqlalchemy
 dotenv
 datetime
 stripe
 pymysql
-flask_login
 authlib
-flask_sqlalchemy
+functools

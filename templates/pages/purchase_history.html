@@ -12,7 +12,7 @@
         <div class="text-center mb-3">
             <p class="mb-0">ShopLst</p>
             <p class="mb-0">Date: {{ transaction.date|datetimefilter }}</p>
-            <p class="mb-0">Transaction: {{ transaction.transaction_id[:10] }}...</p> <!-- Shortened for readability -->
+            <p class="mb-0">Transaction: {{ transaction.transaction_id[:15] }}...</p> <!-- Shortened for readability -->
         </div>
         <hr style="border-top: 2px dashed #aaa;">
         
@@ -20,7 +20,7 @@
             <thead>
                 <tr>
                     <th scope="col">Item</th>
-                    <th scope="col" class="text-center">Qty</th>
+                    <th scope="col" class="text-center">Amount</th>
                     <th scope="col" class="text-right">Price</th>
                     <th scope="col" class="text-right">Total</th>
                 </tr>
@@ -48,14 +48,4 @@
     </div>
     {% endfor %}
 </div>
-
-<style>
-    .receipt-table th, .receipt-table td {
-        padding: 5px;
-        font-family: 'Courier New', Courier, monospace;
-    }
-    .receipt-table thead th {
-        border-bottom: 1px solid #aaa;
-    }
-</style>
 {% endblock %}

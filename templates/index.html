@@ -1,6 +1,6 @@
 {% extends 'layout.html' %}
 {% block headline %}
-    <br><h1 class="title pt-5">Welcome to ShopLst!</h1>
+    <br><h1 class="title pt-5">Welcome to ShopLst{{', ' + name + '!' if current_user.is_authenticated }}</h1>
 {% endblock headline %}
 
 {% block content %}

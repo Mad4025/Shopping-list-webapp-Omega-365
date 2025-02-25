@@ -1,17 +1,17 @@
-from flask import Flask, render_template, redirect, url_for, jsonify, request, session as sessn, g
+from flask import Flask, render_template, redirect, url_for, jsonify, request, session as sessn, g, abort
 from flask_login import login_user, login_required, logout_user, current_user, LoginManager
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
 from models import ShoppingList, ShoppingCart, User, PurchaseHistory, engine, load_dotenv, os, datetime
 import stripe
 from authlib.integrations.flask_client import OAuth
 from sqlalchemy import distinct
+from functools import wraps
 
 
 load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv('FLASK_SECRET_KEY')
-
 stripe.api_key = os.getenv('stripe_api_key')
 
 login_manager = LoginManager()
@@ -31,12 +31,20 @@ app.jinja_env.filters['datetimefilter'] = datetimefilter
 
 @login_manager.user_loader
 def load_user(user_id):
-    with Session(engine) as db_session:
-        return db_session.get(User, int(user_id)) if user_id else None
+    with Session(engine) as session:
+        return session.get(User, int(user_id)) if user_id else None
 
 @app.before_request
 def set_global_user():
     g.current_user = current_user
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if current_user.role != 'admin':
+            abort(403) # Forbidden
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Clean up the session when the app shuts down
 @app.teardown_appcontext
@@ -49,10 +57,8 @@ google = oauth.register("myApp",
     # Client_id and client_secret is individual and only found on console.cloud.google.com in your project under credentials
     client_id=os.getenv('CLIENT_ID'),
     client_secret=os.getenv('CLIENT_SECRET'),
-    # Make sure you have enabled these scopes in OAuth consent screen.
-    client_kwargs={'scope': 'openid profile email'},  # Use all of the scopes you added in console.cloud.google.com
-    # Connect to server.
-    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',  # Important for OIDC
+    client_kwargs={'scope': 'openid profile email'},  # Make sure you have enabled these scopes in OAuth consent screen. You can add or remove scopes at 'Data Access'.
+    server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',  # Connect to server.
 )
 
 
@@ -60,29 +66,37 @@ google = oauth.register("myApp",
 def index():
     profile_pic = sessn.get('profile_pic')
     name = sessn.get('name')
-    return render_template('index.html', profile_pic=profile_pic, name=name)
+    user_admin = sessn.get('user_admin', False)
+    return render_template('index.html', profile_pic=profile_pic, name=name, user_admin=user_admin)
 
 
 @app.route('/shopping-list')
 def shopping_list():
     profile_pic = sessn.get('profile_pic')
     name = sessn.get('name')
+    user_admin = sessn.get('user_admin', False)
     with Session(engine) as session:
         items = session.query(ShoppingList).all()
-    return render_template('pages/shopping_list.html', items=items, profile_pic=profile_pic, name=name)
+        categories = set(item.category for item in items if item.category) # Unique categories
+        categories.add('Uncategorized') # Ensure 'Uncategorized is included
+    return render_template('pages/shopping_list.html', items=items, categories=categories, profile_pic=profile_pic, name=name, user_admin=user_admin)
 
 
 @app.route('/add-item', methods=['GET'])
+@login_required
+@admin_required
 def add_item_form():
     profile_pic = sessn.get('profile_pic')
     name = sessn.get('name')
-    return render_template('pages/add_item.html', profile_pic=profile_pic, name=name)
+    user_admin = sessn.get('user_admin', False)
+    return render_template('pages/add_item.html', profile_pic=profile_pic, name=name, user_admin=user_admin)
 
 
 @app.route('/purchase-history')
-def purchase_hitory():
+def purchase_history():
     profile_pic = sessn.get('profile_pic')
     name = sessn.get('name')
+    user_admin = sessn.get('user_admin', False)
     with Session(engine) as session:
         transaction_ids = session.query(distinct(PurchaseHistory.transaction_id)).all()
         transactions = []
@@ -96,19 +110,42 @@ def purchase_hitory():
                     'total': total,
                     'date': purchases[0].purchased_at # Use the first item's date
                 })
-    return render_template('pages/purchase_history.html', transactions=transactions, name=name, profile_pic=profile_pic)
+    return render_template('pages/purchase_history.html', transactions=transactions, name=name, profile_pic=profile_pic, user_admin=user_admin)
 
 
 @app.route('/add-item', methods=['POST'])
 def add_item():
     item_name = request.form['item_name']
+    category = request.form['category'] # Default to 'Uncategorized' if not provided, instead of NULL.
     quantity = request.form['quantity']
     price = request.form['price']
     with Session(engine) as session:
-        new_item = ShoppingList(item_name=item_name, quantity=quantity, price=price)
+        new_item = ShoppingList(item_name=item_name, quantity=quantity, price=price, category=category)
         session.add(new_item)
         session.commit()
     return redirect(url_for('shopping_list'))
+
+
+@app.route('/edit-item/<int:item_id>', methods=['PUT'])
+def edit_item(item_id):
+    if not sessn.get('user_admin'):
+        return jsonify({ 'status': 'error', 'message': 'Unauthorized' }), 403
+    
+    data = request.get_json()
+    item_name = data.get('itemName')
+    category = data.get('category')
+    quantity = data.get('quantity')
+
+    with Session(engine) as session:
+        item = session.query(ShoppingList).filter_by(id=item_id).first()
+        if item:
+            item.item_name = item_name
+            item.category = category
+            item.quantity = quantity
+            session.commit()
+            return jsonify({ 'status': 'success' })
+        else:
+            return jsonify({ 'status': 'error', 'message': 'Item not found.' }), 404
 
 
 @app.route('/add-to-cart', methods=['POST'])
@@ -202,7 +239,7 @@ def success():
                     session.delete(cart_item)
             session.commit()
     # Future changes here: remove items in cart when you buy and maybe even add a receipt 0_0.
-    return redirect(url_for('shopping_list'))
+    return redirect(url_for('purchase_history'))
 
 
 @app.route('/cancel')
@@ -242,17 +279,30 @@ def login_google():
 def google_callback():
     token = oauth.myApp.authorize_access_token()
     sessn['user'] = token
-    # Login logic
     user_info = google.get('https://www.googleapis.com/oauth2/v3/userinfo').json()
     sessn['profile_pic'] = user_info['picture']  # Save profile picture URL
     sessn['name'] = user_info['name']
-    user = db_session.query(User).filter_by(username=user_info['name']).first()
+    user = db_session.query(User).filter_by(email=user_info['email']).first()
+
+    # Add the emails that will have admin privileges.
+    is_admin = user_info['email'] == os.getenv('ADMIN_EMAILS') # Replace with your admin email
+
     # To update user roles
     if not user:
-        user = User(username=user_info['name'], role='user') # user = filler data
+        user = User(
+            email=user_info['email'], 
+            role='admin' if is_admin else 'user')
+        db_session.add(user)
+    else:
+        if is_admin and user.role != 'admin':
+            user.role = 'admin'
+        elif not is_admin and user.role == 'admin':
+            user.role = 'user'
     db_session.commit() # Commit changes to the database
 
     login_user(user)
+    # Save admin permissions (True or False) to session.
+    sessn['user_admin'] = is_admin
     return redirect(url_for('shopping_list'))
 
 
@@ -261,4 +311,5 @@ def google_callback():
 @login_required
 def logout():
     logout_user()
+    sessn['user_admin'] = False
     return redirect(url_for('index'))

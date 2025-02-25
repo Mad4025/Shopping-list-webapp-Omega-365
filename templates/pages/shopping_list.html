@@ -5,16 +5,53 @@
 {% endblock headline %}
 
 {% block content %}
+    <!-- Filter Dropdown -->
+    <div class="mb-4">
+        <label for="categoryFilter" class="form-label">Filter by Category:</label>
+        <select class="form-control w-auto d-inline-block" id="categoryFilter">
+            <option value="all">All Categories</option>
+            {% for category in categories %}
+            <option value="{{ category }}">{{ category }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <!-- Shopping list items -->
     <div class="container mt-5">
-        <div class="row">
+        <div class="row" id="itemList">
             {% for item in items %}
-            <div class="col-custom-5 mb-4">
+            <div class="col-custom-5 mb-4" data-category="{{ item.category or 'Uncategorized' }}">
                 <div class="item-block">
-                    <h5>{{ item.item_name }}</h5>
-                    <p><strong>Price:</strong> ${{ item.price }}</p>
-                    <p><strong>Stock:</strong> {{ item.quantity }}</p>
-                    <p><strong>Added:</strong> {{ item.created_at.strftime('%d.%m.%Y') }}</p>
-                    <button class="btn btn-success btn-sm" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
+                    <!-- Static Display -->
+                    <div id="static-{{ item.id }}">
+                        <h5 id="static-item-name-{{ item.id }}">{{ item.item_name }}</h5>
+                        <p><strong>Price:</strong> ${{ item.price }}</p>
+                        <p><strong>Stock:</strong><span id="static-quantity-{{ item.id }}"> {{ item.quantity }}</span></p>
+                        <p><strong>Category:</strong><span id="static-category-{{ item.id }}"> {{ item.category or 'Uncategorized' }}</span></p>
+                        <p><strong>Added:</strong> {{ item.created_at.strftime('%d.%m.%Y') }}</p>
+                        <button class="btn btn-success btn-sm" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
+                        {% if user_admin %}
+                        <button class="btn btn-primary btn-sm" onclick="enableEditing('{{ item.id }}', '{{ item.item_name }}', '{{ item.category }}', '{{ item.quantity }}')">✏️</button>
+                        {% endif %} 
+                    </div>
+
+                    <!-- Editable Fields (Initially Hidden) -->
+                    <div id="edit-{{ item.id }}" style="display: none;">
+                        <div class="mb-3">
+                            <label for="edit-item-name-{{ item.id }}" class="form-label">Item Name</label>
+                            <input type="text" class="form-control" id="edit-item-name-{{ item.id }}" value="{{ item.item_name }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-category-{{ item.id }}" class="form-label">Category</label>
+                            <input type="text" class="form-control" id="edit-category-{{ item.id }}" value="{{ item.category or 'Uncategorized' }}">
+                        </div>
+                        <div class="mb-3">
+                            <label for="edit-quantity-{{ item.id }}" class="form-label">Stock</label>
+                            <input type="number" class="form-control" id="edit-quantity-{{ item.id }}" value="{{ item.quantity }}">
+                        </div>
+                        <button class="btn btn-success btn-sm" onclick="submitEditForm('{{ item.id }}')">Save</button>
+                        <button class="btn btn-secondary btn-sm" onclick="cancelEditing('{{ item.id }}')">Cancel</button>
+                    </div>
                 </div>
             </div>
             {% endfor %}
@@ -56,64 +93,6 @@
             </div>
         </div>
     </div>
-
     <!-- View Cart Button -->
     <button class="btn btn-info" id="viewCartBtn" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">View Cart🛒</button>
-    <script>
-        function addToCart(itemName) {
-            fetch('/add-to-cart', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `item_name=${encodeURIComponent(itemName)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    updateCartModal(data.cart);
-                     // Display that you've added an item to the cart with Toast!
-                    var toastEl = document.getElementById('cartToast');
-                    var toast = new bootstrap.Toast(toastEl);
-                    toast.show();
-                } 
-                else {
-                    alert(data.message || 'Could not add item to cart.');
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        }
-
-        function deleteFromCart(itemId) {
-            fetch('/delete-from-cart', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `item_id=${itemId}`
-            })
-            .then(response => response.json())
-            .then(data => updateCartModal(data.cart))
-            .catch(error => console.error('Error:', error));
-        }
-
-        function updateCartModal(cart) {
-            const cartList = document.getElementById('cartItemsList');
-            cartList.innerHTML = '';
-            cart.forEach(item => {
-                const li = document.createElement('li');
-                li.className = 'list-group-item d-flex justify-content-between align-items-center';
-                li.innerHTML = `${item.item_name || 'Unknown Item'} (x${item.quantity}) 
-                <button class="btn btn-danger btn-sm" onclick="deleteFromCart(${item.id})">Delete</button>`;
-                cartList.appendChild(li);
-            });
-        }
-
-        // Fetch cart contents when clicking 'view cart'
-        document.getElementById('viewCartBtn').addEventListener('click', () => {
-            fetch('/get-cart', {method:'GET'})
-            .then(response => response.json())
-            .then(data => updateCartModal(data.cart))
-            .catch(error => console.error('Error:', error))
-
-            const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
-            cartModal.show();
-        });
-    </script>
 {% endblock content %}

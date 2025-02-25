@@ -18,6 +18,7 @@ class ShoppingList(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     item_name = Column(String(100), nullable=False)
+    category = Column(String(50), nullable=True)
     quantity = Column(Integer, default=1)
     price = Column(DECIMAL(10, 2), default=0.00)
     created_at = Column(DateTime, default=datetime.now)
@@ -50,8 +51,8 @@ class PurchaseHistory(Base):
 class User(UserMixin, Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
-    username = Column(String(150), unique=True, nullable=False)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(150), unique=True, nullable=False)
     role = Column(String(50), default='user')
 
 
