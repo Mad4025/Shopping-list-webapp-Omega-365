@@ -92,6 +92,19 @@ def add_item_form():
     return render_template('pages/add_item.html', profile_pic=profile_pic, name=name, user_admin=user_admin)
 
 
+@app.route('/admin')
+@login_required
+@admin_required
+def admin():
+    profile_pic = sessn.get('profile_pic')
+    name = sessn.get('name')
+    user_admin = sessn.get('user_admin', False)
+
+    with Session(engine) as session:
+        user_count = session.query(User).count()
+    return render_template('pages/admin.html', user_count=user_count, profile_pic=profile_pic, name=name, user_admin=user_admin)
+
+
 @app.route('/purchase-history')
 def purchase_history():
     if not current_user.is_authenticated:
@@ -136,15 +149,18 @@ def edit_item(item_id):
     
     data = request.get_json()
     item_name = data.get('itemName')
-    category = data.get('category')
+    price = data.get('price')
     quantity = data.get('quantity')
+    category = data.get('category')
+
 
     with Session(engine) as session:
         item = session.query(ShoppingList).filter_by(id=item_id).first()
         if item:
             item.item_name = item_name
-            item.category = category
+            item.price = price
             item.quantity = quantity
+            item.category = category
             session.commit()
             return jsonify({ 'status': 'success' })
         else:
@@ -157,34 +173,38 @@ def add_to_cart():
         return jsonify({ 'status': 'error', 'message': 'Please log in to add items to cart' }), 403
 
     item_name = request.form['item_name']
-    with Session(engine) as session:
-        # Check available stock in ShoppingList
-        shopping_item = session.query(ShoppingList).filter_by(item_name=item_name).first()
-        if not shopping_item or shopping_item.quantity <= 0:
-            return jsonify({'status': 'error', 'message': 'Item out of stock'}), 400
-        
-        # Check if item exists in cart
-        cart_item = session.query(ShoppingCart).filter_by(item_name=item_name, user_id=current_user.id).first()
-        if cart_item:
-            if shopping_item.quantity <= cart_item.quantity:
-                return jsonify({'status': 'error', 'message': 'Not enough stock'}), 400
-            cart_item.quantity += 1
-        else:
-            cart_item = ShoppingCart(
-                item_name=item_name, 
-                quantity=1,
-                user_id=current_user.id
-                )
-            session.add(cart_item)
+    # Check available stock in ShoppingList
+    shopping_item = db_session.query(ShoppingList).filter_by(item_name=item_name).first()
+    if not shopping_item or shopping_item.quantity <= 0:
+        return jsonify({'status': 'error', 'message': 'Item out of stock'}), 400
+    
+    # Check if item exists in cart
+    cart_item = db_session.query(ShoppingCart).filter_by(item_name=item_name, user_id=current_user.id).first()
+    if cart_item:
+        if shopping_item.quantity >= cart_item.quantity + shopping_item.quantity:
+            return jsonify({'status': 'error', 'message': 'Not enough stock'}), 400
+        cart_item.quantity += 1
+    else:
+        cart_item = ShoppingCart(
+            item_name=item_name, 
+            quantity=1,
+            user_id=current_user.id
+            )
+        db_session.add(cart_item)
 
-        # Reduce stock in ShoppingList
-        shopping_item.quantity -= 1
-        session.commit()
+    # Reduce stock in ShoppingList
+    shopping_item.quantity -= 1
+    db_session.commit()
 
-        # Fetch all cart items
-        cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
-        cart_list = [{'id':item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
-    return jsonify({'status':'success', 'cart':cart_list})
+    # Fetch all cart items
+    cart_items = db_session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
+    cart_list = [{'id':item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
+    return jsonify({ 
+        'status':'success', 
+        'cart': cart_list,
+        'stock': shopping_item.quantity,
+        'item_id': shopping_item.id
+        })
 
 
 @app.route('/create-checkout-session', methods=['POST'])
@@ -195,7 +215,7 @@ def create_checkout_session():
     with Session(engine) as session:
         cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
         if not cart_items:
-            return 'Your cart is empty', 400
+            return jsonify({ 'status': 'error', 'message': 'Your cart is empty' })
         
         line_items = []
         for cart_item in cart_items:
@@ -252,7 +272,6 @@ def success():
                     session.add(purchase)
             session.query(ShoppingCart).filter_by(user_id=current_user.id).delete()
             session.commit()
-    # Future changes here: remove items in cart when you buy and maybe even add a receipt 0_0.
     return redirect(url_for('purchase_history'))
 
 
@@ -278,14 +297,19 @@ def delete_from_cart():
         return jsonify({ 'status': 'error', 'message': 'Please log in to manage your cart.' }), 403
 
     item_id = request.form['item_id']
-    with Session(engine) as session:
-        item = session.query(ShoppingCart).filter_by(id=item_id, user_id=current_user.id).first()
-        if item:
-            session.delete(item)
-            session.commit()
-        cart_items = session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
-        cart_list = [{'id': item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
-    return jsonify({'cart': cart_list})
+    item = db_session.query(ShoppingCart).filter_by(id=item_id, user_id=current_user.id).first()
+    shopping_item = db_session.query(ShoppingList).filter_by(item_name=item.item_name).first()
+    if item:
+        shopping_item.quantity += item.quantity
+        db_session.delete(item)
+        db_session.commit()
+    cart_items = db_session.query(ShoppingCart).filter_by(user_id=current_user.id).all()
+    cart_list = [{'id': item.id, 'item_name': item.item_name, 'quantity': item.quantity} for item in cart_items]
+    return jsonify({ 
+        'cart': cart_list,
+        'stock': shopping_item.quantity,
+        'item_id': shopping_item.id
+        })
 
 
 # Takes you to google's login thing.

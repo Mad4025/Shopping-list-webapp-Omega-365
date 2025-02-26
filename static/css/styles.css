@@ -21,7 +21,7 @@ h1 {
     top: 0;          /* Attaches it to the very top of the page */
     width: 100%;     /* Stretches it across the screen */
     z-index: 10;     /* Keeps the navbar on top of other content */
-    background-image: url("../img/simple_pattern_background.png");
+    background-image: url("../img/fruits_background_navbar.png");
     background-size: cover; /* Makes the image fit properly */
     background-blend-mode: overlay; /* Blends the color and the image */
     background-color: rgba(53, 55, 45, 0.99); /* Adds the color overlay */
@@ -91,4 +91,10 @@ font-size: 2.5rem;
 }
 .receipt-table thead th {
     border-bottom: 1px solid #aaa;
+}
+
+.toast-container {
+    /* Move it up by the height of the button plus some spacing */
+    bottom: 3.5rem; /* Button height (~3.5rem)
+    z-index: 1055; /* Ensure it’s above other elements, matches Bootstrap toast z-index */
 }

@@ -25,32 +25,40 @@
                     <!-- Static Display -->
                     <div id="static-{{ item.id }}">
                         <h5 id="static-item-name-{{ item.id }}">{{ item.item_name }}</h5>
-                        <p><strong>Price:</strong> ${{ item.price }}</p>
+                        <p><strong>Price:</strong><span id="static-price-{{ item.id }}"> ${{ item.price }}</span></p>
                         <p><strong>Stock:</strong><span id="static-quantity-{{ item.id }}"> {{ item.quantity }}</span></p>
                         <p><strong>Category:</strong><span id="static-category-{{ item.id }}"> {{ item.category or 'Uncategorized' }}</span></p>
                         <p><strong>Added:</strong> {{ item.created_at.strftime('%d.%m.%Y') }}</p>
-                        <button class="btn btn-success btn-sm" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
+                        <button class="btn btn-success btn-sm disable-if-not-enough" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
                         {% if user_admin %}
-                        <button class="btn btn-primary btn-sm" onclick="enableEditing('{{ item.id }}', '{{ item.item_name }}', '{{ item.category }}', '{{ item.quantity }}')">✏️</button>
+                        <button class="btn btn-primary btn-sm" onclick="enableEditing('{{ item.id }}', '{{ item.item_name }}', '{{ item.price }}', '{{ item.quantity }}', '{{ item.category }}')">✏️</button>
                         {% endif %} 
                     </div>
 
                     <!-- Editable Fields (Initially Hidden) -->
                     <div id="edit-{{ item.id }}" style="display: none;">
-                        <div class="mb-3">
-                            <label for="edit-item-name-{{ item.id }}" class="form-label">Item Name</label>
-                            <input type="text" class="form-control" id="edit-item-name-{{ item.id }}" value="{{ item.item_name }}">
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <label for="edit-item-name-{{ item.id }}" class="form-label">Item Name</label>
+                                <input type="text" class="form-control" id="edit-item-name-{{ item.id }}" value="{{ item.item_name }}">
+                            </div>
+                            <div class="col-6">
+                                <label for="edit-price-{{ item.id }}" class="form-label">Price</label>
+                                <input type="float" class="form-control" id="edit-price-{{ item.id }}" value="{{ item.price }}">
+                            </div>
+                            <div class="col-6">
+                                <label for="edit-quantity-{{ item.id }}" class="form-label">Stock</label>
+                                <input type="number" class="form-control" id="edit-quantity-{{ item.id }}" value="{{ item.quantity }}">
+                            </div>
+                            <div class="col-6">
+                                <label for="edit-category-{{ item.id }}" class="form-label">Category</label>
+                                <input type="text" class="form-control" id="edit-category-{{ item.id }}" value="{{ item.category or 'Uncategorized' }}">
+                            </div>
+                            <div class="col-12 mt-2">
+                                <button class="btn btn-success btn-sm" onclick="submitEditForm('{{ item.id }}')">Save</button>
+                                <button class="btn btn-secondary btn-sm" onclick="cancelEditing('{{ item.id }}')">Cancel</button>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label for="edit-category-{{ item.id }}" class="form-label">Category</label>
-                            <input type="text" class="form-control" id="edit-category-{{ item.id }}" value="{{ item.category or 'Uncategorized' }}">
-                        </div>
-                        <div class="mb-3">
-                            <label for="edit-quantity-{{ item.id }}" class="form-label">Stock</label>
-                            <input type="number" class="form-control" id="edit-quantity-{{ item.id }}" value="{{ item.quantity }}">
-                        </div>
-                        <button class="btn btn-success btn-sm" onclick="submitEditForm('{{ item.id }}')">Save</button>
-                        <button class="btn btn-secondary btn-sm" onclick="cancelEditing('{{ item.id }}')">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -59,10 +67,10 @@
     </div>
 
     <!-- Toast Container -->
-    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11;">
+    <div class="toast-container position-fixed end-0 p-3" style="z-index: 11;">
         <div id="cartToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
             <div class="toast-header">
-                <strong class="me-auto">Shopping Cart</strong>
+                <strong class="me-auto">Cart Updated</strong>
                 <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
             <div class="toast-body">
@@ -87,7 +95,7 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <form action="/create-checkout-session" method="POST">
-                        <button type="submit" class="btn btn-success">Proceed to Checkout</button>
+                        <button type="submit" class="btn btn-success" id="checkout-button">Proceed to Checkout</button>
                     </form>
                 </div>
             </div>
@@ -127,7 +135,7 @@
             });
         });
 
-                // Fetch cart contents when clicking 'view cart'
+        // Fetch cart contents when clicking 'view cart'
         document.getElementById('viewCartBtn').addEventListener('click', () => {
             fetch('/get-cart', {method:'GET'})
             .then(response => response.json())
@@ -138,6 +146,22 @@
                     updateCartModal(data.cart)
                     const cartModal = new bootstrap.Modal(document.getElementById('cartModal'));
                     cartModal.show();
+                }
+            })
+            .catch(error => console.error('Error:', error))
+        });
+
+        document.getElementById('checkout-button').addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent any default form submission if applicable
+        
+            fetch('/create-checkout-session', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'error') {
+                    alert(data.message)
                 }
             })
             .catch(error => console.error('Error:', error))

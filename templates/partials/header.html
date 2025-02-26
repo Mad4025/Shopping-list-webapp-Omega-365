@@ -11,10 +11,11 @@
                 <a class="nav-item nav-link" href="/purchase-history">Purchases</a>
                 {% if user_admin %}
                 <a class="nav-item nav-link" href="/add-item">Add item</a>
+                <a class="nav-item nav-link" href="/admin">Admin</a>
                 {% endif %}
             </div>
         </div>
-        <div class="btn">
+        <div>
             {% if current_user.is_authenticated %}
                 {% if profile_pic %}
                     <img src="{{ profile_pic }}" style="width:38px; height:38px; border-radius:50%;">

@@ -8,6 +8,18 @@ function addToCart(itemName) {
     .then(data => {
         if (data.status === 'success') {
             updateCartModal(data.cart);
+
+            const stockElement = document.getElementById(`static-quantity-${data.item_id}`)
+            if (stockElement) {
+                stockElement.textContent = ` ${data.stock}`;
+
+                // Disable button if stock is zero or less.
+                if (data.stock <= 0) {
+                    const addButton = stockElement.closest(`#static-${data.item_id}`).querySelector('.disable-if-not-enough');
+                    if (addButton) addButton.disabled = true;
+                }
+            }
+
              // Display that you've added an item to the cart with Toast!
             var toastEl = document.getElementById('cartToast');
             var toast = new bootstrap.Toast(toastEl);
@@ -27,7 +39,14 @@ function deleteFromCart(itemId) {
         body: `item_id=${itemId}`
     })
     .then(response => response.json())
-    .then(data => updateCartModal(data.cart))
+    .then(data => {
+        updateCartModal(data.cart)
+
+        const stockElement = document.getElementById(`static-quantity-${data.item_id}`)
+            if (stockElement) {
+                stockElement.textContent = ` ${data.stock}`;
+            }
+    })
     .catch(error => console.error('Error:', error));
 }
 
@@ -43,7 +62,7 @@ function updateCartModal(cart) {
     });
 }
 
-function enableEditing(itemId, itemName, category, quantity) {
+function enableEditing(itemId) {
     // Hide static display
     document.getElementById(`static-${itemId}`).style.display = 'none';
     // Show editable fields
@@ -58,22 +77,24 @@ function cancelEditing(itemId) {
 }
 
 function submitEditForm(itemId) {
-    const itemName = ' ' + document.getElementById(`edit-item-name-${itemId}`).value;
-    const category = ' ' + document.getElementById(`edit-category-${itemId}`).value;
-    const quantity = ' ' + document.getElementById(`edit-quantity-${itemId}`).value;
+    const itemName = document.getElementById(`edit-item-name-${itemId}`).value;
+    const price = document.getElementById(`edit-price-${itemId}`).value;
+    const quantity = document.getElementById(`edit-quantity-${itemId}`).value;
+    const category = document.getElementById(`edit-category-${itemId}`).value;
 
     fetch(`/edit-item/${itemId}`, {
         method: 'PUT',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ itemName, category, quantity })
+        body: JSON.stringify({ itemName, price, quantity, category })
     })
     .then(response => response.json())
     .then(data => {
         if(data.status === 'success') {
             // Update static display
             document.getElementById(`static-item-name-${itemId}`).textContent = itemName;
-            document.getElementById(`static-category-${itemId}`).textContent = category;
+            document.getElementById(`static-price-${itemId}`).textContent = price;
             document.getElementById(`static-quantity-${itemId}`).textContent = quantity;
+            document.getElementById(`static-category-${itemId}`).textContent = category;
             cancelEditing(itemId)
         } 
         else {
