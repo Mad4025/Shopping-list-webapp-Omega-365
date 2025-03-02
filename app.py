@@ -64,45 +64,52 @@ google = oauth.register("myApp",
 
 @app.route('/')
 def index():
-    profile_pic = sessn.get('profile_pic')
-    name = sessn.get('name')
-    user_admin = sessn.get('user_admin', False)
-    return render_template('index.html', profile_pic=profile_pic, name=name, user_admin=user_admin)
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'user_admin': sessn.get('user_admin', False)
+    }
+    return render_template('index.html', **user_data)
 
 
 @app.route('/shopping-list')
 def shopping_list():
-    profile_pic = sessn.get('profile_pic')
-    name = sessn.get('name')
-    user_admin = sessn.get('user_admin', False)
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'user_admin': sessn.get('user_admin', False)
+    }
     with Session(engine) as session:
         items = session.query(ShoppingList).all()
         categories = set(item.category for item in items if item.category) # Unique categories
-        categories.add('Uncategorized') # Ensure 'Uncategorized is included
-    return render_template('pages/shopping_list.html', items=items, categories=categories, profile_pic=profile_pic, name=name, user_admin=user_admin)
+    return render_template('pages/shopping_list.html', items=items, categories=categories, **user_data)
 
 
 @app.route('/add-item', methods=['GET'])
 @login_required
 @admin_required
 def add_item_form():
-    profile_pic = sessn.get('profile_pic')
-    name = sessn.get('name')
-    user_admin = sessn.get('user_admin', False)
-    return render_template('pages/add_item.html', profile_pic=profile_pic, name=name, user_admin=user_admin)
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'user_admin': sessn.get('user_admin', False)
+    }
+    return render_template('pages/add_item.html', **user_data)
 
 
 @app.route('/admin')
 @login_required
 @admin_required
 def admin():
-    profile_pic = sessn.get('profile_pic')
-    name = sessn.get('name')
-    user_admin = sessn.get('user_admin', False)
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'user_admin': sessn.get('user_admin', False)
+    }
 
     with Session(engine) as session:
         user_count = session.query(User).count()
-    return render_template('pages/admin.html', user_count=user_count, profile_pic=profile_pic, name=name, user_admin=user_admin)
+    return render_template('pages/admin.html', user_count=user_count, **user_data)
 
 
 @app.route('/purchase-history')
@@ -110,9 +117,12 @@ def purchase_history():
     if not current_user.is_authenticated:
         return render_template('pages/purchase_history.html', transactions=[]) # Empty transactions
 
-    profile_pic = sessn.get('profile_pic')
-    name = sessn.get('name')
-    user_admin = sessn.get('user_admin', False)
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'user_admin': sessn.get('user_admin', False)
+    }
+
     with Session(engine) as session:
         transaction_ids = session.query(distinct(PurchaseHistory.transaction_id)).filter_by(user_id=current_user.id).all()
         transactions = []
@@ -126,7 +136,28 @@ def purchase_history():
                     'total': total,
                     'date': purchases[0].purchased_at # Use the first item's date
                 })
-    return render_template('pages/purchase_history.html', transactions=transactions, name=name, profile_pic=profile_pic, user_admin=user_admin)
+    return render_template('pages/purchase_history.html', transactions=transactions, **user_data)
+
+
+@app.route('/profile')
+@login_required
+def profile():
+    user_data = {
+        'profile_pic': sessn.get('profile_pic'),
+        'name': sessn.get('name'),
+        'email': sessn.get('email'),
+        'user_admin': sessn.get('user_admin', False)
+    }
+
+    total_spent = 0
+    with Session(engine) as session:
+        total_purchases = session.query(distinct(PurchaseHistory.transaction_id)).filter_by(user_id=current_user.id).count()
+        user_data['total_purchases'] = total_purchases
+
+        purchases = session.query(PurchaseHistory).filter_by(user_id=current_user.id).all()
+        total_spent += sum(purchase.price * purchase.quantity for purchase in purchases)
+        user_data['total_spent'] = total_spent
+    return render_template('pages/profile.html', **user_data)
 
 
 @app.route('/add-item', methods=['POST'])
@@ -227,7 +258,7 @@ def create_checkout_session():
                         'product_data': {
                             'name': cart_item.item_name,
                         },
-                        'unit_amount': int(shopping_item.price * 100) # Convert
+                        'unit_amount': int(shopping_item.price * 100) # Convert (stripe sets the amount to pennies instead of dollars).
                     },
                     'quantity': cart_item.quantity,
                 })
@@ -246,7 +277,7 @@ def create_checkout_session():
                 success_url=f'{request.host_url}success?session_id={{CHECKOUT_SESSION_ID}}',
                 cancel_url=f'{request.host_url}cancel'
             )
-            return redirect(checkout_session.url, code=303)
+            return jsonify({ 'status': 'success', 'checkout_url': checkout_session.url })
         except Exception as e:
             return str(e), 500
 
@@ -312,6 +343,18 @@ def delete_from_cart():
         })
 
 
+@app.route('/delete-account/<int:user_id>')
+@login_required
+def delete_account():
+    pass # To be added.
+
+
+@app.route('/delete-shopping-item')
+@login_required
+def delete_shopping_item():
+    pass # To be added.
+
+
 # Takes you to google's login thing.
 @app.route('/login/google')
 def login_google():
@@ -326,15 +369,16 @@ def google_callback():
     user_info = google.get('https://www.googleapis.com/oauth2/v3/userinfo').json()
     sessn['profile_pic'] = user_info['picture']  # Save profile picture URL
     sessn['name'] = user_info['name']
-    user = db_session.query(User).filter_by(email=user_info['email']).first()
+    sessn['email'] = user_info['email']
+    user = db_session.query(User).filter_by(email=sessn['email']).first()
 
-    # Add the emails that will have admin privileges.
-    is_admin = user_info['email'] == os.getenv('ADMIN_EMAILS') # Replace with your admin email
+    # Add the emails that will have admin privileges in the .env file.
+    is_admin = sessn['email'] == os.getenv('ADMIN_EMAILS')
 
     # To update user roles
     if not user:
         user = User(
-            email=user_info['email'], 
+            email=sessn['email'], 
             role='admin' if is_admin else 'user')
         db_session.add(user)
     else:
@@ -345,7 +389,7 @@ def google_callback():
     db_session.commit() # Commit changes to the database
 
     login_user(user)
-    # Save admin permissions (True or False) to session.
+    # Save admin permissions (True or False) to sessn.
     sessn['user_admin'] = is_admin
     return redirect(url_for('shopping_list'))
 

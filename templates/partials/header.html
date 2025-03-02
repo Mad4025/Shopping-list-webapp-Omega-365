@@ -17,11 +17,19 @@
         </div>
         <div>
             {% if current_user.is_authenticated %}
-                {% if profile_pic %}
-                    <img src="{{ profile_pic }}" style="width:38px; height:38px; border-radius:50%;">
-                {% endif %}
-                <span class="btn" style="color:#F1FAEE;">{{ name }}</span>
-                <a href="{{ url_for('logout') }}" class="btn btn-danger" style="color:#F1FAEE;">Log out</a>
+            <div class="dropdown">
+                <button class="btn dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false" style="color:#F1FAEE;">
+                    {% if profile_pic %}
+                        <img src="{{ profile_pic }}" style="width:38px; height:38px; border-radius:50%; margin-right:5px;">
+                    {% endif %}
+                    {{ name }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                    <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                    <li><a class="dropdown-item" href="/purchase-history">Settings</a></li>
+                    <li><a class="dropdown-item text-danger" href="{{ url_for('logout') }}">Log out</a></li>
+                </ul>
+            </div>
             {% else %}
                 <a href="{{ url_for('login_google') }}" class="btn btn-primary" style="color:#F1FAEE;">Log in</a>
             {% endif %} 

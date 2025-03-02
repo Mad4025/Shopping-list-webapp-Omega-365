@@ -151,20 +151,26 @@
             .catch(error => console.error('Error:', error))
         });
 
+        // Alert message 'cart is empty' instead of being sent to a very blank page
         document.getElementById('checkout-button').addEventListener('click', function(event) {
-            event.preventDefault(); // Prevent any default form submission if applicable
-        
+            event.preventDefault(); // Prevent any default form submission
+
             fetch('/create-checkout-session', {
             method: 'POST',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'}
             })
-            .then(response => response.json())
+            .then(response => response.json()) // Parse JSON for success case
             .then(data => {
                 if (data.status === 'error') {
-                    alert(data.message)
+                    alert(data.message);
+                } else if (data.status === 'success') {
+                    window.location.href = data.checkout_url; // redirect to Stripe checkout
                 }
             })
-            .catch(error => console.error('Error:', error))
+            .catch(error => {
+                console.error('Error:', error);
+                alert(error.message || 'An error occured');
+            })
         });
     </script>
 {% endblock content %}

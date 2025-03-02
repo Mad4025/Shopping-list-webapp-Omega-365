@@ -28,7 +28,7 @@
 ---
 1. Search `MySQL Download`, or [click here](https://dev.mysql.com/downloads/installer/).
 2. Download and install the version you need. Remember the password you set in the setup.
-3. Open MySQL and log in. Then, use `CREATE DATABASE your_database` and replace your_database with the name you want your database to have.
+3. Open MySQL and log in. Then, type the command `CREATE DATABASE your_database` (replace your_database with the name you want your database to have).
 4. In Visual Studio Code, make a new file called `.env`. Paste this in your file:
 ```.env
 # Change your_username with root, your_password with your password, and your_database with the name of your database.
@@ -37,7 +37,7 @@ db_path=your_username:your_password@localhost/your_database
 Check out the `.env.example` file to see a template of how the entire file should look like. 
 
 ### Stripe API key
-> This is where you'll get the API key (for testing, meaning we're using "fake money") for using the checkout in the Web-App.
+> This is where you'll get the API key (for testing, meaning we're using fake money) for using the checkout in the Web-App.
 ---
 1. Go to [stripe](https://dashboard.stripe.com/test/apikeys) and sign up if you don't already have an account.
 2. Copy the `Secret key` and paste it in your `.env` file. Check out the `.env.example` file to see a template of how the entire file should look like. 
@@ -46,7 +46,7 @@ Check out the `.env.example` file to see a template of how the entire file shoul
 > Google login is used to log in and create users in the Web-App securely.
 > While this might look like at lot of steps, it only takes about 5-10 minutes to set up.
 ---
-1. Go to [Google Cloud](console.cloud.google.com)
+1. Go to [Google Cloud](https://console.cloud.google.com)
 2. Make new project. Click on APIs & Services.
 3. Go to Enable APIs & services and click ENABLE APIS AND SERVICES.
 4. Search for People API, click on it and enable it.
