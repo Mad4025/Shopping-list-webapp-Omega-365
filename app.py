@@ -156,7 +156,7 @@ def profile():
 
         purchases = session.query(PurchaseHistory).filter_by(user_id=current_user.id).all()
         total_spent += sum(purchase.price * purchase.quantity for purchase in purchases)
-        user_data['total_spent'] = total_spent
+        user_data['total_spent'] = round(total_spent, 2)
     return render_template('pages/profile.html', **user_data)
 
 

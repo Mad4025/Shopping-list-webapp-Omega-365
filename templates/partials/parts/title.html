@@ -1,0 +1,8 @@
+{% set ns = namespace(title="ShopLst") %}
+
+{% if meta and meta.name %}
+    {% set ns.title = meta.name + "ShopLst" %}
+{% elif content and content.heading %}
+    {% set ns.title = content.heading + " . ShopLst" %}
+{% endif %}
+<title>{{ ns.title }}</title>
