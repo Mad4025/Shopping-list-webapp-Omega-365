@@ -104,3 +104,28 @@ function submitEditForm(itemId) {
     })
     .catch(error => console.error('Error:', error));
 }
+
+function deleteItem(itemId) {
+    if (confirm('Are you sure you want to delete this item?')) {
+        fetch(`/delete-shopping-item/${itemId}`, {
+            method: 'DELETE',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                // Remove the item from the DOM
+                const itemElement = document.getElementById(`static-${itemId}`);
+                if (itemElement) {
+                    itemElement.parentElement.remove(); // Remove the entire col-3 div
+                }
+            } else {
+                alert(data.message || 'Failed to delete item');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the item');
+        })
+    }
+}

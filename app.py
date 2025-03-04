@@ -349,10 +349,23 @@ def delete_account():
     pass # To be added.
 
 
-@app.route('/delete-shopping-item')
+@app.route('/delete-shopping-item/<int:item_id>', methods=['DELETE'])
 @login_required
-def delete_shopping_item():
-    pass # To be added.
+@admin_required
+def delete_shopping_item(item_id):
+    if not current_user.is_authenticated:
+        return jsonify({ 'status': 'error', 'message': 'Please log in to manage shopping items.' }), 403
+    
+    with Session(engine) as session:
+        item = session.query(ShoppingList).filter_by(id=item_id).first()
+        if item:
+            session.delete(item)
+            session.commit()
+            return jsonify({ 'status': 'success', 'message': 'Item deleted successfully' })
+        else:
+            return jsonify({ 'status': 'error', 'message': 'Item not found' }), 404
+    
+    
 
 
 # Takes you to google's login thing.

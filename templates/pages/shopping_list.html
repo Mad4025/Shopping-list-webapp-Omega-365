@@ -32,6 +32,7 @@
                         <button class="btn btn-success btn-sm disable-if-not-enough" onclick="addToCart('{{ item.item_name }}')">Add to Cart🛒</button>
                         {% if user_admin %}
                         <button class="btn btn-primary btn-sm" onclick="enableEditing('{{ item.id }}', '{{ item.item_name }}', '{{ item.price }}', '{{ item.quantity }}', '{{ item.category }}')">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteItem('{{ item.id }}')">🗑️</button>
                         {% endif %} 
                     </div>
 
