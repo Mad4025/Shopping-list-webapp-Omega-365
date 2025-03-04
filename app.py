@@ -358,7 +358,7 @@ def delete_shopping_item():
 # Takes you to google's login thing.
 @app.route('/login/google')
 def login_google():
-    return oauth.myApp.authorize_redirect(redirect_uri="http://localhost:5000" + url_for('google_callback'), _external=True)
+    return oauth.myApp.authorize_redirect(redirect_uri=os.getenv('web_url') + url_for('google_callback'), _external=True)
 
 
 # Where Google takes you after using their login thing.

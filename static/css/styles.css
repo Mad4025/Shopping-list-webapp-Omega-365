@@ -21,7 +21,7 @@ h1 {
     top: 0;          /* Attaches it to the very top of the page */
     width: 100%;     /* Stretches it across the screen */
     z-index: 10;     /* Keeps the navbar on top of other content */
-    background-image: url("../img/fruits_background_navbar.png");
+    background-image: url("../img/fruits_background_navbar.webP");
     background-size: cover; /* Makes the image fit properly */
     background-blend-mode: overlay; /* Blends the color and the image */
     background-color: rgba(53, 55, 45, 0.99); /* Adds the color overlay */
